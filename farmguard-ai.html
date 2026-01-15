@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FarmGuard AI - Smart Agriculture Disease Detection</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+        * { font-family: 'Inter', sans-serif; }
+        body {
+            background: #0a0e1a;
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(16, 185, 129, 0.1) 0px, transparent 50%),
+                radial-gradient(at 100% 0%, rgba(59, 130, 246, 0.1) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(139, 92, 246, 0.1) 0px, transparent 50%);
+        }
+        .glass-card {
+            background: rgba(17, 24, 39, 0.8);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+        .glass-card-light {
+            background: rgba(31, 41, 55, 0.6);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .upload-zone {
+            border: 2px dashed rgba(16, 185, 129, 0.4);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            background: rgba(16, 185, 129, 0.02);
+        }
+        .upload-zone:hover {
+            border-color: #10b981;
+            background: rgba(16, 185, 129, 0.1);
+            transform: translateY(-2px);
+            box-shadow: 0 12px 40px rgba(16, 185, 129, 0.2);
+        }
+        .glow-text { text-shadow: 0 0 20px rgba(16, 185, 129, 0.5); }
+        .confidence-meter {
+            background: rgba(255, 255, 255, 0.05);
+            height: 16px;
+            border-radius: 8px;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .confidence-indicator {
+            position: absolute;
+            top: 0; left: 0; height: 100%;
+            background: linear-gradient(90deg, #10b981 0%, #3b82f6 100%);
+            transition: all 1.5s cubic-bezier(0.19, 1, 0.22, 1);
+            box-shadow: 0 0 20px rgba(16, 185, 129, 0.6);
+        }
+        .loading-spinner {
+            border: 3px solid rgba(16, 185, 129, 0.2);
+            border-top-color: #10b981;
+            border-radius: 50%;
+            width: 24px; height: 24px;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .gradient-border {
+            position: relative;
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.3), rgba(59, 130, 246, 0.3));
+            border-radius: 1rem;
+            padding: 1.5px;
+        }
+        .gradient-border-inner {
+            background: rgba(17, 24, 39, 0.95);
+            border-radius: 0.95rem;
+            padding: 1.5rem;
+        }
+        .neon-button:hover:not(:disabled) {
+            box-shadow: 0 0 25px rgba(16, 185, 129, 0.4);
+            transform: translateY(-1px);
+        }
+    </style>
+</head>
+<body class="min-h-screen p-4 md:p-8 text-white">
+    <div class="max-w-7xl mx-auto">
+        <header class="glass-card rounded-3xl p-8 mb-8">
+            <div class="flex flex-col md:flex-row items-center justify-between gap-8">
+                <div>
+                    <h1 class="text-4xl font-extrabold flex items-center gap-3 glow-text">
+                        <span class="text-5xl">🌾</span>
+                        <span class="bg-clip-text text-transparent bg-gradient-to-r from-green-400 to-emerald-500">FarmGuard AI</span>
+                    </h1>
+                    <p class="text-gray-400 mt-2 text-lg">Intelligent Plant Pathology & Advisory System</p>
+                </div>
+                
+                <div class="flex flex-col sm:flex-row items-center gap-4">
+                    <div class="relative">
+                        <input type="text" id="cityInput" placeholder="Enter City..." 
+                            class="px-5 py-3 bg-gray-900/50 border border-white/10 rounded-2xl text-white focus:outline-none focus:border-green-500 w-64">
+                        <button onclick="fetchWeather()" class="absolute right-2 top-2 px-4 py-1.5 bg-green-500 rounded-xl text-xs font-bold hover:bg-green-400">SEARCH</button>
+                    </div>
+                    <div id="weatherDisplay" class="hidden">
+                        <div class="flex items-center gap-4 glass-card-light px-6 py-3 rounded-2xl">
+                            <img id="weatherIcon" class="w-12 h-12" src="" alt="Weather">
+                            <div>
+                                <div class="text-2xl font-bold" id="temperature">--°C</div>
+                                <div class="text-xs text-gray-400 uppercase" id="weatherCondition">--</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <main class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <section class="space-y-8">
+                <div class="glass-card rounded-3xl p-8">
+                    <h2 class="text-xl font-bold mb-6 flex items-center gap-3">
+                        <span class="p-2 bg-green-500/20 rounded-lg text-green-400">01</span> Upload Specimen
+                    </h2>
+                    
+                    <div id="uploadZone" class="upload-zone rounded-3xl p-10 text-center cursor-pointer mb-6" onclick="document.getElementById('fileInput').click()">
+                        <input type="file" id="fileInput" accept="image/*" class="hidden" onchange="handleFileSelect(event)">
+                        <div id="uploadPlaceholder">
+                            <div class="w-16 h-16 bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <svg class="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4" stroke-width="2" stroke-linecap="round"/></svg>
+                            </div>
+                            <p class="font-bold">Click or Drag Leaf Image</p>
+                        </div>
+                        <div id="imagePreview" class="hidden">
+                            <img id="previewImg" src="" alt="Preview" class="max-h-64 mx-auto rounded-2xl">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 uppercase mb-2">Crop Type</label>
+                            <select id="cropType" class="w-full px-4 py-4 bg-gray-900/50 border border-white/10 rounded-2xl text-white focus:border-green-500 outline-none">
+                                <option value="">Select Crop...</option>
+                                <option value="Apple">🍎 Apple</option>
+                                <option value="Blueberry">🫐 Blueberry</option>
+                                <option value="Cherry">🍒 Cherry</option>
+                                <option value="Corn">🌽 Corn</option>
+                                <option value="Grape">🍇 Grape</option>
+                                <option value="Orange">🍊 Orange</option>
+                                <option value="Peach">🍑 Peach</option>
+                                <option value="Pepper">🫑 Pepper</option>
+                                <option value="Potato">🥔 Potato</option>
+                                <option value="Raspberry">🫐 Raspberry</option>
+                                <option value="Soybean">🌱 Soybean</option>
+                                <option value="Squash">🎃 Squash</option>
+                                <option value="Strawberry">🍓 Strawberry</option>
+                                <option value="Tomato">🍅 Tomato</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 uppercase mb-2">Crop Age (Days)</label>
+                            <input type="number" id="cropAge" placeholder="e.g. 45" class="w-full px-4 py-4 bg-gray-900/50 border border-white/10 rounded-2xl text-white focus:border-green-500 outline-none">
+                        </div>
+                    </div>
+
+                    <button id="analyzeBtn" onclick="analyzeImage()" class="w-full mt-8 py-5 bg-gradient-to-r from-green-600 to-emerald-600 rounded-2xl font-black uppercase tracking-widest flex items-center justify-center gap-3 neon-button">
+                        <span id="btnText">Run AI Diagnosis</span>
+                        <div id="btnLoader" class="hidden loading-spinner"></div>
+                    </button>
+                </div>
+            </section>
+
+            <section>
+                <div class="glass-card rounded-3xl p-8 h-full">
+                    <h2 class="text-xl font-bold mb-6 flex items-center gap-3">
+                        <span class="p-2 bg-blue-500/20 rounded-lg text-blue-400">02</span> Diagnostic Report
+                    </h2>
+                    
+                    <div id="resultsPlaceholder" class="flex flex-col items-center justify-center h-64 opacity-40">
+                        <p>Awaiting analysis input...</p>
+                    </div>
+                    
+                    <div id="resultsContent" class="hidden space-y-6">
+                        <div class="gradient-border">
+                            <div class="gradient-border-inner">
+                                <p class="text-[10px] font-black text-green-500 uppercase tracking-widest mb-1">Detected Pathogen</p>
+                                <h3 id="diseaseName" class="text-3xl font-black mb-2">--</h3>
+                                <div class="flex gap-4 text-xs font-bold text-gray-400">
+                                    <span>TYPE: <span id="resCrop" class="text-white">--</span></span>
+                                    <span>STAGE: <span id="resStage" class="text-white">--</span></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="glass-card-light rounded-2xl p-6">
+                            <div class="flex justify-between items-end mb-2">
+                                <p class="text-[10px] font-black text-blue-400 uppercase">Confidence Score</p>
+                                <span id="confidencePercent" class="text-2xl font-black">--%</span>
+                            </div>
+                            <div class="confidence-meter">
+                                <div id="confidenceBar" class="confidence-indicator" style="width: 0%"></div>
+                            </div>
+                        </div>
+
+                        <div class="space-y-4">
+                            <div class="p-4 rounded-2xl bg-white/5 border border-white/5">
+                                <p class="text-[10px] font-black text-emerald-400 uppercase mb-1">Immediate Action</p>
+                                <p id="treatText" class="text-sm text-gray-300">--</p>
+                            </div>
+                            <div class="p-4 rounded-2xl bg-white/5 border border-white/5">
+                                <p class="text-[10px] font-black text-orange-400 uppercase mb-1">Prevention Strategy</p>
+                                <p id="preventText" class="text-sm text-gray-300">--</p>
+                            </div>
+                            <div class="p-4 rounded-2xl bg-white/5 border border-white/5">
+                                <p class="text-[10px] font-black text-red-400 uppercase mb-1">Environmental Risk</p>
+                                <p id="riskText" class="text-sm text-gray-300">--</p>
+                            </div>
+                        </div>
+
+                        <button onclick="location.reload()" class="w-full py-4 bg-gray-800 rounded-2xl font-bold text-sm hover:bg-gray-700">RESET ANALYSIS</button>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        let selectedFile = null;
+        const WEATHER_KEY = 'bc512c2f2549411085f191917261401';
+
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            selectedFile = file;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                document.getElementById('uploadPlaceholder').classList.add('hidden');
+                document.getElementById('imagePreview').classList.remove('hidden');
+                document.getElementById('previewImg').src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        async function fetchWeather() {
+            const city = document.getElementById('cityInput').value;
+            if (!city) return alert('Enter a city name');
+            try {
+                const res = await fetch(`https://api.weatherapi.com/v1/current.json?key=${WEATHER_KEY}&q=${city}`);
+                const data = await res.json();
+                document.getElementById('weatherDisplay').classList.remove('hidden');
+                document.getElementById('temperature').textContent = `${data.current.temp_c}°C`;
+                document.getElementById('weatherCondition').textContent = data.current.condition.text;
+                document.getElementById('weatherIcon').src = `https:${data.current.condition.icon}`;
+            } catch (e) { alert('Weather data unavailable'); }
+        }
+
+        async function analyzeImage() {
+            if (!selectedFile) return alert('Upload a leaf image first');
+            const cropType = document.getElementById('cropType').value;
+            const cropAge = document.getElementById('cropAge').value;
+            if (!cropType || !cropAge) return alert('Complete crop details');
+
+            const btn = document.getElementById('analyzeBtn');
+            btn.disabled = true;
+            document.getElementById('btnText').textContent = 'ANALYZING...';
+            document.getElementById('btnLoader').classList.remove('hidden');
+
+            const formData = new FormData();
+            formData.append('file', selectedFile);
+            formData.append('crop_age', cropAge);
+            formData.append('crop_type', cropType); // This triggers the Python filter!
+
+            try {
+                const res = await fetch('/predict', { method: 'POST', body: formData });
+                const data = await res.json();
+                
+                document.getElementById('resultsPlaceholder').classList.add('hidden');
+                document.getElementById('resultsContent').classList.remove('hidden');
+                
+                document.getElementById('diseaseName').textContent = data.disease;
+                document.getElementById('resCrop').textContent = cropType.toUpperCase();
+                document.getElementById('resStage').textContent = data.growth_stage.toUpperCase();
+                document.getElementById('confidencePercent').textContent = data.confidence;
+                document.getElementById('confidenceBar').style.width = data.confidence;
+                
+                document.getElementById('treatText').textContent = data.treatment;
+                document.getElementById('preventText').textContent = data.prevention;
+                document.getElementById('riskText').textContent = data.risk_factors;
+            } catch (e) { alert('Server error'); }
+            finally {
+                btn.disabled = false;
+                document.getElementById('btnText').textContent = 'RUN AI DIAGNOSIS';
+                document.getElementById('btnLoader').classList.add('hidden');
+            }
+        }
+    </script>
+</body>
+</html>
