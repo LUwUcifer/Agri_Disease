@@ -28,6 +28,9 @@ FarmGuard AI is a crop disease and pest attack, prediction and warning applicati
 
 ![Workflow](https://github.com/LUwUcifer/Agri_Disease/blob/main/Workflow.jpg)
 
+### Hardware Used
+
+![Hardware](https://github.com/LUwUcifer/FarmGuard-AI/blob/main/Hardware.jpg)
 
 ## Tech Stack
 
